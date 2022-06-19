@@ -14,13 +14,15 @@ cycles = 10 #Cantidad de paquetes para evaluar la población
 attackThreshold = 30 #Cantidad de feromona para declarar un ataque
 evaporationRate = 2 #Velocidad de evaporacion de la feromona
 feromoneAdded = 10 #Cantidad de feromona a agregar en cada evaluacion que indica ataque
-porcentajeAtaque = 0.3 #Porcentaje de baja del fitness para detectar un ataque
+porcentajeAtaque = 0.4 #Porcentaje de baja del fitness para detectar un ataque
 grafico = "promedio"
 ## FIN PARÁMETROS DE LA EVOLUCIÓN
 
 ## Parametros Grupo 5
+activatePurge = True # Si la modificacion del modelo esta activa. 
 topElementos = 3 # Los elementos que sobreviven a la purga.
 pesoDiversidad = 10 # Cuanto peso tiene la diversidad en el score de la purga. 
+diversityCutoff = 0.3 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
 ##
 
 #Contador para tipos de paquetes, para actualizar los genes de los agentes y el comodín
@@ -215,7 +217,7 @@ class model:
             # Guardamos la diversidad del agente como su diversidad absoluta dividida por la poblacion.
             # Esto asume que la poblacion es constante. 
 
-            print(div / initialPop)
+            # print(div / initialPop)
             i.setDiversity(div / initialPop)
 
     def flatGenes(self, genes = {}):
@@ -567,13 +569,17 @@ while(True):
     if(packet == ""):
         # Testing
 
-        ataqueModel.calculateDiversity()
-        ataqueModel.population = purgeElitism(ataqueModel.population)
+        #ataqueModel.calculateDiversity()
+        #ataqueModel.population = purgeElitism(ataqueModel.population)
         # Este freeze no hace nada al ejecutar esto al final del programa, pero hay que recordarlo
         # para despues.  
-        ataqueModel.freeze = True
-        print(ataqueModel.population)
-        print(len(ataqueModel.population))
+        #ataqueModel.freeze = True
+        #print(ataqueModel.population)
+        #print(len(ataqueModel.population))
+
+        #print(ataqueModel.population[0].genes)
+        #print(ataqueModel.population[1].genes)
+        #print(ataqueModel.population[2].genes)
         # Fin Testing
 
         print("Parece que se terminó el archivo")
@@ -664,7 +670,27 @@ while(True):
                 i.memory.fitness = 0
         #Actualizamos la matriz de todos los agentes si hay un nuevo paquete que agregar a sus genes
         i.checkDictionaryUpdate(models)
-            
+        
+        # Esto basicamente congela el modelo de ataque cuando la diversidad baja de un punto. 
+        # No funciona realmente, si no se me ocurre otra cosa voy a simplemente seleccionar un set de
+        # ticks para hacer los tesst vs el modelo normal.
+
+        if (activatePurge == True) and (ataqueModel != None) and (ataqueModel.freeze != True):
+            ataqueModel.calculateDiversity()
+
+            aux = 0
+
+            for i in ataqueModel.population:
+                aux += i.diversity
+
+            if(ticks % 100 == 0): 
+                print(aux / initialPop)
+
+            if ((aux / initialPop) < diversityCutoff):
+                print("FREEZE " + str(ticks / 10))
+                ataqueModel.population = purgeElitism(ataqueModel.population)
+                ataqueModel.freeze = True
+
     lastPacket = packet
 
 
