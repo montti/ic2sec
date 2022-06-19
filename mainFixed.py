@@ -688,6 +688,8 @@ while(True):
             if(ticks % 100 == 0): 
                 print(aux / initialPop)
 
+            # Revisamos si tenemos un punto manual o es por diversidad.
+
             if diversityCutoff == 0:
                 if int(ticks / cycles) == purgePoint: 
                     print("FREEZE " + str(ticks / 10))
