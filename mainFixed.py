@@ -1,6 +1,7 @@
 import random, copy
 import matplotlib.pyplot as plt
 import operator
+import pickle
 
 ## PARÁMETROS DE LA EVOLUCIÓN
 contadorIndividuos = 0 #Contador de individuos para ID
@@ -22,7 +23,8 @@ grafico = "promedio"
 activatePurge = True # Si la modificacion del modelo esta activa. 
 topElementos = 3 # Los elementos que sobreviven a la purga.
 pesoDiversidad = 10 # Cuanto peso tiene la diversidad en el score de la purga. 
-diversityCutoff = 0.3 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
+diversityCutoff = 0 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
+purgePoint = 200 # Si no se utliza un cutoff de diversidad, utlizamos un punto manual para congelar el modelo. 
 ##
 
 #Contador para tipos de paquetes, para actualizar los genes de los agentes y el comodín
@@ -686,7 +688,12 @@ while(True):
             if(ticks % 100 == 0): 
                 print(aux / initialPop)
 
-            if ((aux / initialPop) < diversityCutoff):
+            if diversityCutoff == 0:
+                if int(ticks / cycles) == purgePoint: 
+                    print("FREEZE " + str(ticks / 10))
+                    ataqueModel.population = purgeElitism(ataqueModel.population)
+                    ataqueModel.freeze = True
+            elif ((aux / initialPop) < diversityCutoff):
                 print("FREEZE " + str(ticks / 10))
                 ataqueModel.population = purgeElitism(ataqueModel.population)
                 ataqueModel.freeze = True
