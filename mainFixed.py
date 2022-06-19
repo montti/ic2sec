@@ -1,5 +1,7 @@
 import random, copy
 import matplotlib.pyplot as plt
+import operator
+
 ## PARÁMETROS DE LA EVOLUCIÓN
 contadorIndividuos = 0 #Contador de individuos para ID
 margenChoose = 0.1 #Margen de choosePackets() del individuo
@@ -10,11 +12,16 @@ percentageElitism = 0.4 #Porcentaje de elitismo a realizar
 newMemory = 10 #Cantidad de ciclos para actualizar celula de memoria
 cycles = 10 #Cantidad de paquetes para evaluar la población
 attackThreshold = 30 #Cantidad de feromona para declarar un ataque
-evaporationRate = 1 #Velocidad de evaporacion de la feromona
+evaporationRate = 2 #Velocidad de evaporacion de la feromona
 feromoneAdded = 10 #Cantidad de feromona a agregar en cada evaluacion que indica ataque
 porcentajeAtaque = 0.3 #Porcentaje de baja del fitness para detectar un ataque
 grafico = "promedio"
 ## FIN PARÁMETROS DE LA EVOLUCIÓN
+
+## Parametros Grupo 5
+topElementos = 3 # Los elementos que sobreviven a la purga.
+pesoDiversidad = 10 # Cuanto peso tiene la diversidad en el score de la purga. 
+##
 
 #Contador para tipos de paquetes, para actualizar los genes de los agentes y el comodín
 packetList = {}
@@ -29,18 +36,27 @@ class individual:
     #   packetID: [[packetID, probability], ..., [packetID, probability]]
     # }
     # packetID es el string resultante del hash (o lo que sea que se vaya a usar) de identificación de cada tipo de paquete
-    def __init__(self, i = -1, g = {}, e = 0, f = 0, fM = 0):
+    def __init__(self, i = -1, g = {}, e = 0, f = 0, fM = 0, d = 0):
         self.id = i
         self.genes = g
         self.energy = e
         self.fitness = f
         self.fitnessMemory = fM
 
+        # Añadido Grupo 5
+
+        self.diversity = d
+
     def __repr__(self):
         g = ""
         for i in self.genes:
             g = g + str(i) + ": " + str(self.genes[i]) + "\n"
-        return "ID: " + str(self.id) + "\nGenes:\n" + g +  "\nEnergy: " + str(self.energy) + "\nFitness: " + str(self.fitness) + "\n--------------------\n"
+        return "ID: " + str(self.id) + "\nGenes:\n" + g +  "\nEnergy: " + str(self.energy) + "\nFitness: " + str(self.fitness) + "\nDiversity: " + str(self.diversity) + "\n--------------------\n"
+
+    # Añadido Grupo 5 
+
+    def setDiversity(self, d = 0):
+        self.diversity = d
 
     #Felipe/Alan
     def eatPacket(self, packet = None, packetAnt = None):
@@ -149,6 +165,12 @@ class model:
         self.timeActive = 0
         self.fitnessHistory = []
 
+        # Añadido Grupo 5
+        # Evita que se ejecute, el crossover y mutacion. Sirve para un modelo que
+        # ya se selccionaron sus mejores agentes.
+
+        self.freeze = False
+
     def __repr__(self):
         return str(self.population)
 
@@ -165,6 +187,56 @@ class model:
             }
             self.population.append(individual(i, gene, 0, 0))
         contadorIndividuos = num
+
+    # Añadido Grupo 5
+
+    def calculateDiversity(self):
+        """ Calcula la diversidad de cada agente.
+        """
+
+        for i in self.population:
+            # Incializamos la diversidad
+            div = 0
+
+            # Obtenemos las probabilidades de los genes
+            listProb = self.flatGenes(i.genes)
+            for j in self.population:
+                listProbAux = self.flatGenes(j.genes)
+
+                # Restamos las probablidades.
+                aux = list(map(operator.sub, listProb, listProbAux))
+
+                # Sacamos sus valores absolutos.
+                aux = list(map(abs, aux))
+
+                # Sumamos todos los valores.
+                div += sum(aux) 
+
+            # Guardamos la diversidad del agente como su diversidad absoluta dividida por la poblacion.
+            # Esto asume que la poblacion es constante. 
+
+            print(div / initialPop)
+            i.setDiversity(div / initialPop)
+
+    def flatGenes(self, genes = {}):
+        """ Transforma los genes de un agente a una lista solamente con sus probabilidades.
+
+         Args:
+            genes: Los genes del agente.
+        """
+
+        # Debe existir una manera mas eficiente y legible de hacer esto. Es temporal.
+
+        # Pasa los valores del diccionario a una lista. 
+        aux = list(genes.values())
+
+        # Transforma la lista de 2D a 1D
+        aux = [x for sub in aux for x in sub]
+
+        # Solo guarda las probabilidades. 
+        aux = [x[1] for x in aux]
+
+        return aux
 
 
     #---
@@ -288,6 +360,23 @@ def orderByFitness(x):
 
 def orderByMemoryFitness(x):
     return x.fitnessMemory
+
+def purgeElitism(population, top = 3):
+    """ Seleciona los mejores agentes.
+    Args:
+        population: poblacion del modelo.
+        top: El numero que quedaran en modelo
+        k: Parametro que indica cuanto vale la diversidad para el score de cada agente.
+            Score(Agente) = fitness(Agente) + k * diversity(Agente)
+    """
+
+    population = sorted(population, key = orderByScore, reverse=True)
+    population = population[:top]
+
+    return population
+
+def orderByScore(x, k = pesoDiversidad):
+    return x.fitness + k * x.diversity
 
 #Martin
 def makeUsableList(inputList = None):
@@ -476,6 +565,17 @@ while(True):
     #Leemos y procesamos el siguiente paquete
     packet = parsePacket(currentFile)
     if(packet == ""):
+        # Testing
+
+        ataqueModel.calculateDiversity()
+        ataqueModel.population = purgeElitism(ataqueModel.population)
+        # Este freeze no hace nada al ejecutar esto al final del programa, pero hay que recordarlo
+        # para despues.  
+        ataqueModel.freeze = True
+        print(ataqueModel.population)
+        print(len(ataqueModel.population))
+        # Fin Testing
+
         print("Parece que se terminó el archivo")
         legend = []
         for i in models:
@@ -540,7 +640,9 @@ while(True):
     
         #Realizamos la seleccion de padres
         for i in models:
-            if not i.repose:
+            # Añadido Grupo 5 
+            # Evitamos que la poblacion cambie para el modelo ya "congelado".
+            if (not i.repose) and (not i.freeze):
                 parentsSize = int(len(i.population)*(1-percentageElitism))*2
                 parents = i.selectParents(parentsSize if parentsSize%2==0 else parentsSize+1)
                 #Realizamos la cruza
