@@ -23,9 +23,9 @@ grafico = "promedio"
 activatePurge = True # Si la modificacion del modelo esta activa. 
 topElementos = 3 # Los elementos que sobreviven a la purga.
 pesoDiversidad = 10 # Cuanto peso tiene la diversidad en el score de la purga. 
-diversityCutoff = 0 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
+diversityCutoff = 0.35 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
 purgePoint = 200 # Si no se utliza un cutoff de diversidad, utlizamos un punto manual para congelar el modelo. 
-loadPickle = True # Carga un modelo guardado con pickle en vez de generar un modelo de ataque.
+loadPickle = False # Carga un modelo guardado con pickle en vez de generar un modelo de ataque.
 pickleFilename = "purge.pkl" # Nombre del archivo pickle. 
 ##
 
@@ -700,43 +700,24 @@ while(True):
 
             # Revisamos si tenemos un punto manual o es por diversidad.
 
-            if diversityCutoff == 0:
-                if int(ticks / cycles) == purgePoint: 
-                    print("FREEZE " + str(ticks / 10))
+            if ((diversityCutoff == 0) and int(ticks / cycles) == purgePoint) or ((aux / initialPop) < diversityCutoff): 
+                print("FREEZE " + str(ticks / 10))
 
-                    ataqueModel.freeze = True
+                ataqueModel.freeze = True
 
-                    outf = open('normal.pkl', 'wb')
+                outf = open('normal.pkl', 'wb')
 
-                    pickle.dump(ataqueModel, outf)
+                pickle.dump(ataqueModel, outf)
 
-                    outf.close()
+                outf.close()
 
-                    ataqueModel.population = purgeElitism(ataqueModel.population)
+                ataqueModel.population = purgeElitism(ataqueModel.population)
 
-                    outf = open('purge.pkl', 'wb')
+                outf = open('purge.pkl', 'wb')
 
-                    pickle.dump(ataqueModel, outf)
+                pickle.dump(ataqueModel, outf)
 
-                    outf.close()
-            elif ((aux / initialPop) < diversityCutoff):
-                    print("FREEZE " + str(ticks / 10))
-
-                    ataqueModel.freeze = True
-
-                    outf = open('normal.pkl', 'wb')
-
-                    pickle.dump(ataqueModel, outf)
-
-                    outf.close()
-
-                    ataqueModel.population = purgeElitism(ataqueModel.population)
-
-                    outf = open('purge.pkl', 'wb')
-
-                    pickle.dump(ataqueModel, outf)
-
-                    outf.close()
+                outf.close()
 
     lastPacket = packet
 
