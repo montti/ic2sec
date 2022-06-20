@@ -13,9 +13,9 @@ percentageElitism = 0.4 #Porcentaje de elitismo a realizar
 newMemory = 10 #Cantidad de ciclos para actualizar celula de memoria
 cycles = 10 #Cantidad de paquetes para evaluar la población
 attackThreshold = 30 #Cantidad de feromona para declarar un ataque
-evaporationRate = 2 #Velocidad de evaporacion de la feromona
+evaporationRate = 1 #Velocidad de evaporacion de la feromona
 feromoneAdded = 10 #Cantidad de feromona a agregar en cada evaluacion que indica ataque
-porcentajeAtaque = 0.4 #Porcentaje de baja del fitness para detectar un ataque
+porcentajeAtaque = 0.3 #Porcentaje de baja del fitness para detectar un ataque
 grafico = "promedio"
 ## FIN PARÁMETROS DE LA EVOLUCIÓN
 
@@ -25,6 +25,8 @@ topElementos = 3 # Los elementos que sobreviven a la purga.
 pesoDiversidad = 10 # Cuanto peso tiene la diversidad en el score de la purga. 
 diversityCutoff = 0 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
 purgePoint = 200 # Si no se utliza un cutoff de diversidad, utlizamos un punto manual para congelar el modelo. 
+loadPickle = True # Carga un modelo guardado con pickle en vez de generar un modelo de ataque.
+pickleFilename = "purge.pkl" # Nombre del archivo pickle. 
 ##
 
 #Contador para tipos de paquetes, para actualizar los genes de los agentes y el comodín
@@ -533,7 +535,6 @@ selfModel = model()
 selfModels = [selfModel]
 nonSelfModels = []
 selfModel.repose = False
-
 ataqueModel = None
 #ataqueModel = model(pop = selfModel.population, signal = True, modelType = "ataque")
 #nonSelfModels.append(ataqueModel)
@@ -546,6 +547,9 @@ selfModel.initializePop(initialPop)
 file1 = open("data/normal+ataque_parsed.txt", "rt")
 file2 = open("data/incidente_parsed.txt", "rt")
 
+if loadPickle:
+    filePickle = open(pickleFilename, 'rb')
+
 currentFile = file1
 
 ticks = 0 
@@ -553,6 +557,7 @@ ticks = 0
 fitnessHistory = []
 
 lastPacket = None
+
 
 while(True):
     ticks = ticks + 1
@@ -610,8 +615,13 @@ while(True):
         #Vemos si es necesario realizar cambio al modelo de ataque
         if (not i.repose) and i.alertLevel>attackThreshold and i.timeActive>=100:
             if ataqueModel == None:
-                ataqueModel = model(pop = copy.deepcopy(selfModel.population), modelType = "ataque")
-                ataqueModel.fitnessHistory = fitnessHistory
+                if loadPickle:
+                    ataqueModel = pickle.load(filePickle)
+                    ataqueModel.fitnessHistory = [0] * len(fitnessHistory)
+                else:
+                    ataqueModel = model(pop = copy.deepcopy(selfModel.population), modelType = "ataque")
+                    ataqueModel.fitnessHistory = fitnessHistory
+
                 nonSelfModels.append(ataqueModel)
                 models = selfModels + nonSelfModels
             else:
@@ -693,12 +703,40 @@ while(True):
             if diversityCutoff == 0:
                 if int(ticks / cycles) == purgePoint: 
                     print("FREEZE " + str(ticks / 10))
-                    ataqueModel.population = purgeElitism(ataqueModel.population)
+
                     ataqueModel.freeze = True
+
+                    outf = open('normal.pkl', 'wb')
+
+                    pickle.dump(ataqueModel, outf)
+
+                    outf.close()
+
+                    ataqueModel.population = purgeElitism(ataqueModel.population)
+
+                    outf = open('purge.pkl', 'wb')
+
+                    pickle.dump(ataqueModel, outf)
+
+                    outf.close()
             elif ((aux / initialPop) < diversityCutoff):
-                print("FREEZE " + str(ticks / 10))
-                ataqueModel.population = purgeElitism(ataqueModel.population)
-                ataqueModel.freeze = True
+                    print("FREEZE " + str(ticks / 10))
+
+                    ataqueModel.freeze = True
+
+                    outf = open('normal.pkl', 'wb')
+
+                    pickle.dump(ataqueModel, outf)
+
+                    outf.close()
+
+                    ataqueModel.population = purgeElitism(ataqueModel.population)
+
+                    outf = open('purge.pkl', 'wb')
+
+                    pickle.dump(ataqueModel, outf)
+
+                    outf.close()
 
     lastPacket = packet
 
