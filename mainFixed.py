@@ -2,6 +2,7 @@ import random, copy
 import matplotlib.pyplot as plt
 import operator
 import pickle
+import statistics
 
 ## PARÁMETROS DE LA EVOLUCIÓN
 contadorIndividuos = 0 #Contador de individuos para ID
@@ -22,9 +23,11 @@ grafico = "promedio"
 ## Parametros Grupo 5
 activatePurge = True # Si la modificacion del modelo esta activa. 
 topElementos = 3 # Los elementos que sobreviven a la purga.
-pesoDiversidad = 10 # Cuanto peso tiene la diversidad en el score de la purga. 
-diversityCutoff = 0.35 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
-purgePoint = 200 # Si no se utliza un cutoff de diversidad, utlizamos un punto manual para congelar el modelo. 
+pesoDiversidad = 5 # Cuanto peso tiene la diversidad en el score de la purga. 
+#diversityCutoff = 0 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
+maturityWindow = 1000 # La ventana
+maturityDelta = 4.0
+purgePoint = 450 # Si no se utliza un cutoff de diversidad, utlizamos un punto manual para congelar el modelo. 
 loadPickle = False # Carga un modelo guardado con pickle en vez de generar un modelo de ataque.
 pickleFilename = "purge.pkl" # Nombre del archivo pickle. 
 ##
@@ -384,6 +387,24 @@ def purgeElitism(population, top = 3):
 def orderByScore(x, k = pesoDiversidad):
     return x.fitness + k * x.diversity
 
+def purgeFPS(population, top = 3):
+    return population
+
+def maturity(fitnessHistory):
+    window = fitnessHistory[-maturityWindow:]
+    #if((statistics.stdev(window) < maturityDelta) and (abs(statistics.mean(window) - window[-1]) < 0.01)):
+    #    return True
+    #else:
+    #    return False
+
+    print("SD " + str(statistics.stdev(window)))
+    print("top " + str(sorted(window)[-3:]))
+    print("last " + str(window[-1]))
+    if((statistics.stdev(window) < maturityDelta) and (window[-1] in sorted(window)[-3:])):
+        return True
+    else:
+        return False
+
 #Martin
 def makeUsableList(inputList = None):
     """Recibir una lista con todos los elementos de la entrada, retornar una lista con solo los elementos relevantes.
@@ -574,21 +595,6 @@ while(True):
     #Leemos y procesamos el siguiente paquete
     packet = parsePacket(currentFile)
     if(packet == ""):
-        # Testing
-
-        #ataqueModel.calculateDiversity()
-        #ataqueModel.population = purgeElitism(ataqueModel.population)
-        # Este freeze no hace nada al ejecutar esto al final del programa, pero hay que recordarlo
-        # para despues.  
-        #ataqueModel.freeze = True
-        #print(ataqueModel.population)
-        #print(len(ataqueModel.population))
-
-        #print(ataqueModel.population[0].genes)
-        #print(ataqueModel.population[1].genes)
-        #print(ataqueModel.population[2].genes)
-        # Fin Testing
-
         print("Parece que se terminó el archivo")
         legend = []
         for i in models:
@@ -700,7 +706,7 @@ while(True):
 
             # Revisamos si tenemos un punto manual o es por diversidad.
 
-            if ((diversityCutoff == 0) and int(ticks / cycles) == purgePoint) or ((aux / initialPop) < diversityCutoff): 
+            if ((maturityWindow == 0) and int(ticks / cycles) == purgePoint) or (maturity(ataqueModel.fitnessHistory) and ticks > maturityWindow): 
                 print("FREEZE " + str(ticks / 10))
 
                 ataqueModel.freeze = True
