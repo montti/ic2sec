@@ -20,17 +20,17 @@ porcentajeAtaque = 0.3 #Porcentaje de baja del fitness para detectar un ataque
 grafico = "promedio"
 ## FIN PARÁMETROS DE LA EVOLUCIÓN
 
-## Parametros Grupo 5
+## PARÁMETROS GRUPO 5
 activatePurge = True # Si la modificacion del modelo esta activa. 
 topElementos = 3 # Los elementos que sobreviven a la purga.
 pesoDiversidad = 5 # Cuanto peso tiene la diversidad en el score de la purga. 
-#diversityCutoff = 0 # El valor de la diversidad promedio para que se congele el modelo de ataque. 
 maturityWindow = 1000 # La ventana
-maturityDelta = 4.0
+maturityDelta = 0.6
+maturityTop = 3
 purgePoint = 450 # Si no se utliza un cutoff de diversidad, utlizamos un punto manual para congelar el modelo. 
 loadPickle = False # Carga un modelo guardado con pickle en vez de generar un modelo de ataque.
 pickleFilename = "purge.pkl" # Nombre del archivo pickle. 
-##
+## FIN PARÁMETROS GRUPO 5 
 
 #Contador para tipos de paquetes, para actualizar los genes de los agentes y el comodín
 packetList = {}
@@ -173,6 +173,7 @@ class model:
         self.repose = False
         self.timeActive = 0
         self.fitnessHistory = []
+        self.stdHistory = []
 
         # Añadido Grupo 5
         # Evita que se ejecute, el crossover y mutacion. Sirve para un modelo que
@@ -387,23 +388,23 @@ def purgeElitism(population, top = 3):
 def orderByScore(x, k = pesoDiversidad):
     return x.fitness + k * x.diversity
 
-def purgeFPS(population, top = 3):
-    return population
+def maturity(fitnessHistory, stdHistory, ticks):
+    if (maturityWindow < ticks and len(fitnessHistory) >= maturityWindow):
+        window = fitnessHistory[-maturityWindow:]
+        
+        #print("SD " + str(statistics.stdev(window)))
+        #print("top " + str(sorted(window)[-maturityTop:]))
+        #print("last " + str(window[-1]))
 
-def maturity(fitnessHistory):
-    window = fitnessHistory[-maturityWindow:]
-    #if((statistics.stdev(window) < maturityDelta) and (abs(statistics.mean(window) - window[-1]) < 0.01)):
-    #    return True
-    #else:
-    #    return False
-
-    print("SD " + str(statistics.stdev(window)))
-    print("top " + str(sorted(window)[-3:]))
-    print("last " + str(window[-1]))
-    if((statistics.stdev(window) < maturityDelta) and (window[-1] in sorted(window)[-3:])):
-        return True
+        std = statistics.stdev(window)
+        stdHistory.append(std)
+        if((std < maturityDelta) and (window[-1] in sorted(window)[-maturityTop:])):
+            return True
+        else:
+            return False
     else:
-        return False
+        stdHistory.append(0);
+        return False 
 
 #Martin
 def makeUsableList(inputList = None):
@@ -566,7 +567,7 @@ selfModel.initializePop(initialPop)
 #print(selfModel)
 
 file1 = open("data/normal+ataque_parsed.txt", "rt")
-file2 = open("data/incidente_parsed.txt", "rt")
+#file1 = open("nuevoTrafico/udp_parsed.txt", "rt")
 
 if loadPickle:
     filePickle = open(pickleFilename, 'rb')
@@ -601,6 +602,9 @@ while(True):
             plt.plot(i.fitnessHistory)
             legend.append(i.type)
             #print(i.fitnessHistory)
+        if ataqueModel != None:
+            plt.plot(ataqueModel.stdHistory)
+            legend.append("STD")
         plt.title("Normalidad vs Ataque")
         plt.legend(legend)
         plt.show()
@@ -627,6 +631,7 @@ while(True):
                 else:
                     ataqueModel = model(pop = copy.deepcopy(selfModel.population), modelType = "ataque")
                     ataqueModel.fitnessHistory = fitnessHistory
+                    ataqueModel.stdHistory = [0] * len(fitnessHistory)
 
                 nonSelfModels.append(ataqueModel)
                 models = selfModels + nonSelfModels
@@ -706,7 +711,7 @@ while(True):
 
             # Revisamos si tenemos un punto manual o es por diversidad.
 
-            if ((maturityWindow == 0) and int(ticks / cycles) == purgePoint) or (maturity(ataqueModel.fitnessHistory) and ticks > maturityWindow): 
+            if ((maturityWindow == 0) and int(ticks / cycles) == purgePoint) or ((maturityWindow != 0) and maturity(ataqueModel.fitnessHistory, ataqueModel.stdHistory, ticks)): 
                 print("FREEZE " + str(ticks / 10))
 
                 ataqueModel.freeze = True
