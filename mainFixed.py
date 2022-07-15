@@ -21,14 +21,16 @@ grafico = "promedio"
 ## FIN PARÁMETROS DE LA EVOLUCIÓN
 
 ## PARÁMETROS GRUPO 5
-activatePurge = True # Si la modificacion del modelo esta activa. 
-topElementos = 3 # Los elementos que sobreviven a la purga.
-pesoDiversidad = 5 # Cuanto peso tiene la diversidad en el score de la purga. 
-maturityWindow = 400 # La ventana
-maturityLimit = 0.6
-purgePoint = 450 # Si no se utliza un cutoff de diversidad, utlizamos un punto manual para congelar el modelo. 
-loadPickle = False # Carga un modelo guardado con pickle en vez de generar un modelo de ataque.
-pickleFilename = "purge.pkl" # Nombre del archivo pickle. 
+activatePurge = True  # Si las modificaciones están activas, con False actuá como CyES normal. 
+topElementos = 3      # La cantidad de elementos que sobreviven a la purga y son seleccionados
+pesoDiversidad = 5    # El peso de la diversidad en el score de la purga. 
+maturityWindow = 400  # El tamaño de la ventana de fitnessHistory que se utiliza para
+                      # identificar si la fitness es estable y ver si ya esta madura la población.
+                      
+maturityLimit = 0.6   # El valor de desviación estándar mínima permitida, bajo este valor se activa la purga. 
+purgePoint = 450      # El punto manual para la purga, solo se utiliza si maturityWindow = 0.
+loadPickle = False    # Si es verdadero carga un modelo guardado con pickle en vez de generar un modelo de ataque.
+pickleFilename = "purge.pkl" # Nombre del archivo pickle a cargar. 
 ## FIN PARÁMETROS GRUPO 5 
 
 #Contador para tipos de paquetes, para actualizar los genes de los agentes y el comodín
@@ -50,9 +52,6 @@ class individual:
         self.energy = e
         self.fitness = f
         self.fitnessMemory = fM
-
-        # Añadido Grupo 5
-
         self.diversity = d
 
     def __repr__(self):
@@ -61,9 +60,14 @@ class individual:
             g = g + str(i) + ": " + str(self.genes[i]) + "\n"
         return "ID: " + str(self.id) + "\nGenes:\n" + g +  "\nEnergy: " + str(self.energy) + "\nFitness: " + str(self.fitness) + "\nDiversity: " + str(self.diversity) + "\n--------------------\n"
 
-    # Añadido Grupo 5 
 
     def setDiversity(self, d = 0):
+        """ Inicializa la diversidad.
+        
+        Args:
+            d: La diversidad.
+
+        """
         self.diversity = d
 
     #Felipe/Alan
@@ -139,7 +143,7 @@ class individual:
         """Actualizar los genes de los individuos para incluir el paquete 'packet', visto muchas veces.
 
         Args:
-            packet: El paquete que se quiere agregar a los genes de la poblacion (def = None)
+            packet: El paquete que se quiere agregar a los genes de la población (def = None)
         """
         for i in self.genes:
             newPacketChance = round(self.genes[i][0][1] / 2, 2)
@@ -174,9 +178,7 @@ class model:
         self.fitnessHistory = []
         self.stdHistory = []
 
-        # Añadido Grupo 5
-        # Evita que se ejecute, el crossover y mutacion. Sirve para un modelo que
-        # ya se selccionaron sus mejores agentes.
+        # Evita que se ejecute el crossover y mutacion.
 
         self.freeze = False
 
@@ -204,7 +206,7 @@ class model:
         """
 
         for i in self.population:
-            # Incializamos la diversidad
+            # Inicializamos la diversidad
             div = 0
 
             # Obtenemos las probabilidades de los genes
@@ -212,7 +214,7 @@ class model:
             for j in self.population:
                 listProbAux = self.flatGenes(j.genes)
 
-                # Restamos las probablidades.
+                # Restamos las probabilidades.
                 aux = list(map(operator.sub, listProb, listProbAux))
 
                 # Sacamos sus valores absolutos.
@@ -221,8 +223,8 @@ class model:
                 # Sumamos todos los valores.
                 div += sum(aux) 
 
-            # Guardamos la diversidad del agente como su diversidad absoluta dividida por la poblacion.
-            # Esto asume que la poblacion es constante. 
+            # Guardamos la diversidad del agente como su diversidad absoluta dividida por la población.
+            # Esto asume que la población es constante. 
 
             # print(div / initialPop)
             i.setDiversity(div / initialPop)
@@ -353,11 +355,11 @@ class model:
         self.alertLevel = self.alertLevel + amount
 
 def elitism(population,news):
-    """Ordenar segun fitness y eliminar a los peores reemplazandolos por los hijos creados.
+    """Ordenar según fitness y eliminar a los peores reemplazándolos por los hijos creados.
         
     Args:
-        population: Poblacion que va a conservar a los mejores
-        news: Hijos creados que se agregaran a la poblacion (population)
+        population: Población que va a conservar a los mejores
+        news: Hijos creados que se agregaran a la población (population)
     """
     population = sorted(population, key = orderByFitness, reverse = True)
     population = population[:(len(population)-len(news))]
@@ -371,11 +373,11 @@ def orderByMemoryFitness(x):
     return x.fitnessMemory
 
 def purgeElitism(population, top = 3):
-    """ Seleciona los mejores agentes.
+    """ Selecciona los mejores agentes.
     Args:
-        population: poblacion del modelo.
+        population: población del modelo.
         top: El numero que quedaran en modelo
-        k: Parametro que indica cuanto vale la diversidad para el score de cada agente.
+        k: Parámetro que indica cuanto vale la diversidad para el score de cada agente.
             Score(Agente) = fitness(Agente) + k * diversity(Agente)
     """
 
@@ -388,12 +390,21 @@ def orderByScore(x, k = pesoDiversidad):
     return x.fitness + k * x.diversity
 
 def maturity(fitnessHistory, stdHistory, ticks):
+    """ Retorna verdadero si detecta que el modelo ya esta maduro.
+
+    Args:
+        fitnessHistory: La historia de fitness del modelo.
+        stdHistory: La historia de la desviación estándar
+        ticks: El tick actual.  
+
+    """
     if (maturityWindow < ticks and len(fitnessHistory) >= maturityWindow):
         window = fitnessHistory[-maturityWindow:]
         
-        print("SD " + str(statistics.stdev(window)))
-        print("top " + str(sorted(window)[-maturityTop:]))
-        print("last " + str(window[-1]))
+        # DEBUG: Imprimir la desviación estándar.
+        # 
+        # print("SD " + str(statistics.stdev(window)))
+        # print("last " + str(window[-1]))
 
         std = statistics.stdev(window)
         stdHistory.append(std)
@@ -566,7 +577,6 @@ selfModel.initializePop(initialPop)
 #print(selfModel)
 
 file1 = open("data/normal+ataque_parsed.txt", "rt")
-#file1 = open("nuevoTrafico/udp_parsed.txt", "rt")
 
 if loadPickle:
     filePickle = open(pickleFilename, 'rb')
@@ -603,7 +613,7 @@ while(True):
             #print(i.fitnessHistory)
         if ataqueModel != None:
             plt.plot(ataqueModel.stdHistory)
-            legend.append("STD")
+            legend.append("SD ataque")
         plt.title("Normalidad vs Ataque")
         plt.legend(legend)
         plt.show()
@@ -624,6 +634,7 @@ while(True):
         #Vemos si es necesario realizar cambio al modelo de ataque
         if (not i.repose) and i.alertLevel>attackThreshold and i.timeActive>=100:
             if ataqueModel == None:
+                # En el caso que carguemos un modelo, creamos una historia de fitness inicial "falsa".
                 if loadPickle:
                     ataqueModel = pickle.load(filePickle)
                     ataqueModel.fitnessHistory = [0] * len(fitnessHistory)
@@ -693,40 +704,37 @@ while(True):
         #Actualizamos la matriz de todos los agentes si hay un nuevo paquete que agregar a sus genes
         i.checkDictionaryUpdate(models)
         
-        # Esto basicamente congela el modelo de ataque cuando la diversidad baja de un punto. 
-        # No funciona realmente, si no se me ocurre otra cosa voy a simplemente seleccionar un set de
-        # ticks para hacer los tesst vs el modelo normal.
+        # Congela el modelo de ataque cuando detecta que el modelo esta maduro.
 
         if (activatePurge == True) and (ataqueModel != None) and (ataqueModel.freeze != True):
             ataqueModel.calculateDiversity()
 
-            aux = 0
+            # DEBUG: Imprimir la diversidad.
+            #
+            # aux = 0
+            # for i in ataqueModel.population:
+            #    aux += i.diversity
 
-            for i in ataqueModel.population:
-                aux += i.diversity
+            # if(ticks % 100 == 0): 
+            #    print(aux / initialPop)
 
-            if(ticks % 100 == 0): 
-                print(aux / initialPop)
-
-            # Revisamos si tenemos un punto manual o es por diversidad.
+            # Revisamos si tenemos un punto manual o es por madurez.
 
             if ((maturityWindow == 0) and int(ticks / cycles) == purgePoint) or ((maturityWindow != 0) and maturity(ataqueModel.fitnessHistory, ataqueModel.stdHistory, ticks)): 
-                print("FREEZE " + str(ticks / 10))
+                print("FREEZE " + str(ticks))
 
                 ataqueModel.freeze = True
 
+                # Guardamos el modelo normal si queremos comparar después.
                 outf = open('normal.pkl', 'wb')
-
                 pickle.dump(ataqueModel, outf)
-
                 outf.close()
 
                 ataqueModel.population = purgeElitism(ataqueModel.population)
 
+                # Guardamos el modelo de ataque purgado si queremos comparar después.
                 outf = open('purge.pkl', 'wb')
-
                 pickle.dump(ataqueModel, outf)
-
                 outf.close()
 
     lastPacket = packet
