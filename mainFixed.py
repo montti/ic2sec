@@ -24,9 +24,8 @@ grafico = "promedio"
 activatePurge = True # Si la modificacion del modelo esta activa. 
 topElementos = 3 # Los elementos que sobreviven a la purga.
 pesoDiversidad = 5 # Cuanto peso tiene la diversidad en el score de la purga. 
-maturityWindow = 1000 # La ventana
-maturityDelta = 0.6
-maturityTop = 3
+maturityWindow = 400 # La ventana
+maturityLimit = 0.6
 purgePoint = 450 # Si no se utliza un cutoff de diversidad, utlizamos un punto manual para congelar el modelo. 
 loadPickle = False # Carga un modelo guardado con pickle en vez de generar un modelo de ataque.
 pickleFilename = "purge.pkl" # Nombre del archivo pickle. 
@@ -392,13 +391,13 @@ def maturity(fitnessHistory, stdHistory, ticks):
     if (maturityWindow < ticks and len(fitnessHistory) >= maturityWindow):
         window = fitnessHistory[-maturityWindow:]
         
-        #print("SD " + str(statistics.stdev(window)))
-        #print("top " + str(sorted(window)[-maturityTop:]))
-        #print("last " + str(window[-1]))
+        print("SD " + str(statistics.stdev(window)))
+        print("top " + str(sorted(window)[-maturityTop:]))
+        print("last " + str(window[-1]))
 
         std = statistics.stdev(window)
         stdHistory.append(std)
-        if((std < maturityDelta) and (window[-1] in sorted(window)[-maturityTop:])):
+        if((std < maturityLimit)):
             return True
         else:
             return False
