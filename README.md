@@ -17,3 +17,15 @@ pickleFilename = "purge.pkl" # Nombre del archivo pickle a cargar.
 ```
 
 ## Uso
+
+Si se quiere correr un modelo de ataque ya purgado loadPickle debe ser verdadero, se debe tener el archivo en la misma carpeta y pickleFilename debe ser igual nombre del archivo. El archivo pickle se obtiene corriendo el programa noramalmente. 
+
+Si se quere poner un punto de purga manualmente maturityWindow debe ser igual a 0 y purgePoint igual al punto deseado.
+
+Para correr el programa solamente se debe correr:
+
+```
+python3 mainFixed.py
+
+```
+Por default se purga en base a la madurez y no manualmente.
